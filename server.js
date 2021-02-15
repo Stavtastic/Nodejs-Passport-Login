@@ -1,7 +1,7 @@
 if (process.env.NODE_ENV !== 'production') {
   require('dotenv').config()
 }
-
+var path = require('path');
 const express = require('express');
 const app = express();
 const bcrypt = require('bcrypt');
@@ -10,6 +10,15 @@ const flash = require('express-flash');
 const session = require('express-session');
 const methodOverride = require('method-override');
 
+// LowDB (because I suck with database technology
+const low = require('lowdb');
+const FileSync = require('lowdb/adapters/FileSync');
+const adapter = new FileSync('db.json');
+const db = low(adapter);
+// Set some defaults (required if your JSON file is empty)
+db.defaults({users: []})
+    .write();
+
 const initializePassport = require('./passport-config');
 initializePassport(
   passport,
@@ -17,16 +26,7 @@ initializePassport(
   id => users.find(user => user.id === id)
 );
 
-// LowDB (because I suck with database technology
-const low = require('lowdb')
-const adapter = new FileSync('db.json')
-const db = low(adapter)
-const FileSync = require('lowdb/adapters/FileSync')
-// Set some defaults (required if your JSON file is empty)
-db.defaults({users: []})
-    .write();
-
-//const users = [];
+const users = [];
 
 app.set('view-engine', 'ejs');
 app.use(express.urlencoded({ extended: false }));
@@ -61,12 +61,12 @@ app.get('/register', checkNotAuthenticated, (req, res) => {
 app.post('/register', checkNotAuthenticated, async (req, res) => {
   try {
     const hashedPassword = await bcrypt.hash(req.body.password, 10)
-    users.push({
+    db.get('users').push({
       id: Date.now().toString(),
       name: req.body.name,
       email: req.body.email,
       password: hashedPassword
-    });
+      }).write();
     res.redirect('/login')
   } catch {
     res.redirect('/register')
